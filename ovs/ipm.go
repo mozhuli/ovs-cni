@@ -22,6 +22,8 @@ import (
 	"net"
 	"os"
 	"time"
+	"encoding/json"
+	"io/ioutil"
 )
 
 type CentralNet struct {
@@ -78,6 +80,13 @@ func checkSubNetRegistered(subnet string, subsets []string) bool {
 	return false
 }
 
+func registerPodInfo(podName string, nameSpace string, cli clientv3.Client) error {
+	_ = ioutil.WriteFile("/tmp/dat1", []byte(podName), 0644)
+	_ = ioutil.WriteFile("/tmp/dat11", []byte(nameSpace), 0644)
+	_, err := cli.Put(context.TODO(), etcdPrefix+podName, nameSpace)
+	return err
+}
+
 func registerSubnet(nodeName string, ipmconfig IPMConfig, cli clientv3.Client) (*net.IPNet, error) {
 	//Convert the subnet to int. for example.
 	//string(10.16.7.0) -> net.IP(10.16.7.0) -> int(168822528)
@@ -115,7 +124,7 @@ func registerSubnet(nodeName string, ipmconfig IPMConfig, cli clientv3.Client) (
 	return subnet, err
 }
 
-func GetSubnet(IPMConfig IPMConfig) (*net.IPNet, error) {
+func GetSubnet(IPMConfig IPMConfig, pname, ns string) (*net.IPNet, error) {
 	name, err := os.Hostname()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get NodeName: %v", err)
@@ -126,6 +135,9 @@ func GetSubnet(IPMConfig IPMConfig) (*net.IPNet, error) {
 		DialTimeout: 5 * time.Second,
 	})
 
+	_ = ioutil.WriteFile("/tmp/dat2", []byte(pname), 0644)
+	_ = ioutil.WriteFile("/tmp/dat21", []byte(ns), 0644)
+	registerPodInfo(pname, ns, *cli)
 	subnet, err := checkNodeRegister(name, *cli)
 	if err != nil {
 		fmt.Println(err)
@@ -141,13 +153,13 @@ func GetSubnet(IPMConfig IPMConfig) (*net.IPNet, error) {
 	return subnet, err
 }
 
-func GenerateHostLocalConfig(input []byte) []byte {
+func GenerateHostLocalConfig(input []byte, name, ns string) []byte {
 	n := CentralNet{}
 	if err := json.Unmarshal(input, &n); err != nil {
 		return []byte{}
 	}
-	subnet, err := GetSubnet(*n.IPM)
-	if err != nil {
+	subnet, err := GetSubnet(*n.IPM, name, ns)
+        if err != nil {
 		return []byte{}
 	}
 	//Generate data to localHost

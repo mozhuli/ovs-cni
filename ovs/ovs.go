@@ -7,7 +7,7 @@ import (
 	"net"
 	"runtime"
 	"syscall"
-
+	"io/ioutil"
 	"github.com/containernetworking/cni/pkg/skel"
 	"github.com/containernetworking/cni/pkg/types"
 	"github.com/containernetworking/cni/pkg/types/current"
@@ -16,10 +16,11 @@ import (
 	"github.com/containernetworking/plugins/pkg/ipam"
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containernetworking/plugins/pkg/utils"
-
+	"os"
 	"github.com/j-keck/arping"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"strings"
 )
 
 const defaultBrName = "br0"
@@ -237,9 +238,12 @@ func cmdAdd(args *skel.CmdArgs) error {
 		n.IsGW = true
 	}
 
+	_ = ioutil.WriteFile("/tmp/env", []byte(os.Getenv("CNI_ARGS")), 0644)
 	dataToIPAM := args.StdinData
 	if n.IPAM.Type == "central-ipm" {
-		dataToIPAM = GenerateHostLocalConfig(dataToIPAM)
+		tmp := strings.Split(args.Args, ";")
+		_ = ioutil.WriteFile("/tmp/dat3", []byte(tmp[2][13:]), 0644)
+		dataToIPAM = GenerateHostLocalConfig(dataToIPAM, tmp[2][13:],args.Netns)
 		n.IPAM.Type = "host-local"
 	}
 	// Create a Open vSwitch bridge
