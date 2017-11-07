@@ -22,7 +22,6 @@ import (
 	"net"
 	"os"
 	"time"
-	"encoding/json"
 	"io/ioutil"
 )
 
